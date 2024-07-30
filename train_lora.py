@@ -46,7 +46,7 @@ set_seed(0)
 accelerator = Accelerator(mixed_precision='fp16',
                           gradient_accumulation_steps=train_config["gradient_accumulation_steps"])
 
-from kangaroo.adapter import AdapterModel
+from kangaroo.lora import LoraModel
 from transformers.models.llama import LlamaModel
 
 from typing import Any, Dict, List
@@ -223,7 +223,8 @@ if accelerator.is_main_process:
         os.makedirs(args.cpdir)
 
 config = AutoConfig.from_pretrained(train_config["config_path"])
-model = AdapterModel(config)
+model = LoraModel(config)
+print(f"model architecture: {list(model.children())}")
 from peft import LoraConfig, get_peft_model
 
 config = LoraConfig(
@@ -234,7 +235,6 @@ config = LoraConfig(
     bias="none", 
     task_type="CAUSAL_LM"
 )
-
 model = get_peft_model(model, config)
 
 
