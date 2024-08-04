@@ -222,7 +222,7 @@ if accelerator.is_main_process:
         os.makedirs(args.cpdir)
 
 
-full_model = AutoModelForCausalLM.from_pretrained(args.basepath, torch_dtype="float16", device_map=None)
+full_model = AutoModelForCausalLM.from_pretrained(args.basepath, torch_dtype=torch.float16, device_map=None)
 full_model.eval()
 config = AutoConfig.from_pretrained(train_config["config_path"])
 partial_model = Lora(config)
