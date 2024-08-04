@@ -2,10 +2,10 @@ import os, torch, shutil, glob, time
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data_home", type=str, default="/data/shared_workspace/fujingkai/dataset/sharegpt_0_67999_mufp16")
+parser.add_argument("--data_home", type=str, default="/data/shared_workspace/fujingkai/datasets/sharegpt_0_67999_mufp16")
 parser.add_argument("--start_epoch", type=int, default=0)
 parser.add_argument("--end_epoch", type=int, default=20)
-parser.add_argument("--bs", type=int, default=4)
+parser.add_argument("--bs", type=int, default=3)
 parser.add_argument("--lr", type=float, default=5e-5)
 parser.add_argument("--exit_layer", type=int, default=2)
 parser.add_argument("--debug", action='store_true')

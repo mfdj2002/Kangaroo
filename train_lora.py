@@ -46,8 +46,7 @@ set_seed(0)
 accelerator = Accelerator(mixed_precision='fp16',
                           gradient_accumulation_steps=train_config["gradient_accumulation_steps"])
 
-from kangaroo.lora import LoraModel
-from transformers.models.llama import LlamaModel
+from kangaroo.lora import Lora
 
 from typing import Any, Dict, List
 
@@ -56,7 +55,7 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import numpy as np
-from transformers import get_linear_schedule_with_warmup, AutoConfig, get_cosine_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup, AutoConfig, AutoModelForCausalLM, get_cosine_schedule_with_warmup
 from torch.utils.tensorboard import SummaryWriter
 
 if accelerator.is_main_process:
@@ -222,9 +221,16 @@ if accelerator.is_main_process:
     if not os.path.exists(args.cpdir):
         os.makedirs(args.cpdir)
 
+
+full_model = AutoModelForCausalLM.from_pretrained(args.basepath, torch_dtype="float16", device_map=None)
+full_model.eval()
 config = AutoConfig.from_pretrained(train_config["config_path"])
-model = LoraModel(config)
-print(f"model architecture: {list(model.children())}")
+partial_model = Lora(config)
+# print(f"model architecture: {list(model.children())}")
+partial_model.norm.load_state_dict(full_model.model.norm.state_dict())
+partial_model.layers[0].self_attn.load_state_dict(full_model.model.layers[args.exit_layer+1].self_attn.state_dict())
+partial_model.layers[0].input_layernorm.load_state_dict(full_model.model.layers[args.exit_layer+1].input_layernorm.state_dict())
+
 from peft import LoraConfig, get_peft_model
 
 config = LoraConfig(
@@ -233,7 +239,7 @@ config = LoraConfig(
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
     lora_dropout=0.05,
     bias="none", 
-    task_type="CAUSAL_LM"
+    #task_type="CAUSAL_LM"
 )
 model = get_peft_model(model, config)
 
