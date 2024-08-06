@@ -12,6 +12,8 @@ parser.add_argument('--cpdir', type=str, default='0')
 parser.add_argument('--start', type=int, default=0)
 args = parser.parse_args()
 
+print("training lora...")
+
 train_config = {
     "lr": args.lr,
     "bs": args.bs,
@@ -64,6 +66,17 @@ if accelerator.is_main_process:
 
 baseconfig = AutoConfig.from_pretrained(args.basepath)
 
+
+config = AutoConfig.from_pretrained(train_config["config_path"])
+# config = AutoModel.from_config(config).layers[exit_plus_one_layer_num]
+# partial_model = Lora(config)
+# print(f"model architecture: {list(model.children())}")
+# partial_model.norm.load_state_dict(full_model.model.norm.state_dict())
+# partial_model.layers[0].load_state_dict(full_model.model.layers[int(args.exit_layer)+1].state_dict())
+# partial_model.layers[0].input_layernorm.load_state_dict(full_model.model.layers[int(args.exit_layer)+1].input_layernorm.state_dict())
+# full_model = None
+
+exit_plus_one_layer = Lora(config)
 head = torch.nn.Linear(baseconfig.hidden_size, baseconfig.vocab_size, bias=False)
 
 try:
@@ -77,17 +90,53 @@ try:
         vocab_size, hidden_dim = tensor_slice.get_shape()
         tensor = tensor_slice[:, :hidden_dim].float()
 except:
+    file_map = {}
     with open(os.path.join(args.basepath, "pytorch_model.bin.index.json"), "r") as f:
         index_json = json.loads(f.read())
         head_path = index_json["weight_map"]["lm_head.weight"]
-    weights = torch.load(os.path.join(args.basepath, head_path))
-    tensor = weights["lm_head.weight"].float()
+        for key, filename in index_json.items():
+            if f"model.layers.{args.exit_layer+1}." in key:
+                file_map[key] = filename
+    
+    # Load the weights
+    ep1_weights = {}
+    loaded_files = set()
+    for key, filename in file_map.items():
+        if filename not in loaded_files:
+            file_weights = torch.load(os.path.join(args.basepath, filename))
+            loaded_files.add(filename)
+        ep1_weights[key] = file_weights[key]
+    lm_weights = torch.load(os.path.join(args.basepath, head_path))
+    tensor = lm_weights["lm_head.weight"].float()
+
 
 head.weight.data = tensor
 head.eval()
 
+for name, param in exit_plus_one_layer.named_parameters():
+    weight_name = f"model.layers.{args.exit_layer+1}.{name}"
+    if weight_name in ep1_weights:
+        param.data = ep1_weights[weight_name]
+exit_plus_one_layer.eval()
+
 for param in head.parameters():
     param.requires_grad = False
+
+for param in exit_plus_one_layer.parameters():
+    param.requires_grad = False
+
+
+from peft import LoraConfig, get_peft_model
+
+config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    lora_dropout=0.05,
+    bias="none", 
+    #task_type="CAUSAL_LM"
+)
+model = get_peft_model(exit_plus_one_layer, config)
 
 def list_files(path):
     datapath = []
@@ -222,26 +271,9 @@ if accelerator.is_main_process:
         os.makedirs(args.cpdir)
 
 
-full_model = AutoModelForCausalLM.from_pretrained(args.basepath, torch_dtype=torch.float16, device_map=None)
-full_model.eval()
-config = AutoConfig.from_pretrained(train_config["config_path"])
-partial_model = Lora(config)
-# print(f"model architecture: {list(model.children())}")
-partial_model.norm.load_state_dict(full_model.model.norm.state_dict())
-partial_model.layers[0].self_attn.load_state_dict(full_model.model.layers[args.exit_layer+1].self_attn.state_dict())
-partial_model.layers[0].input_layernorm.load_state_dict(full_model.model.layers[args.exit_layer+1].input_layernorm.state_dict())
 
-from peft import LoraConfig, get_peft_model
 
-config = LoraConfig(
-    r=8,
-    lora_alpha=16,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
-    lora_dropout=0.05,
-    bias="none", 
-    #task_type="CAUSAL_LM"
-)
-model = get_peft_model(model, config)
+
 
 
 optimizer = optim.AdamW(model.parameters(), lr=train_config["lr"], betas=(train_config["b1"], train_config["b2"]))
