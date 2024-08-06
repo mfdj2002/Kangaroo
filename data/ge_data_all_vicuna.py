@@ -19,7 +19,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from fastchat.model.model_adapter import get_conversation_template
 
-bigname="/cache/CKPT/vicuna-7b-v1.3/"
+model_path = "/data/shared_workspace/fujingkai/models/models--kevinpro--Vicuna-7B-CoT"
+tokenizer_path = "/data/shared_workspace/fujingkai/models/models--lmsys--vicuna-7b-v1.5"
+
+#bigname="/cache/CKPT/vicuna-7b-v1.3/"
 
 def longest_common_prefix(list1, list2):
     prefix_length = 0
@@ -38,7 +41,7 @@ def longest_common_prefix(list1, list2):
 def build_dataset_rank(
         tokenizer, split="train",
         select=None,
-        data_path = "/cache/CKPT/ShareGPT_V4.3_unfiltered_cleaned_split.json"
+        data_path = "/data/shared_workspace/fujingkai/datasets/ShareGPT_V3_unfiltered_cleaned_split_no_imsorry.json"
 ):
     ds = load_dataset('json', data_files=data_path)
     
@@ -59,14 +62,33 @@ def build_dataset_rank(
             conv = get_conversation_template("vicuna")
             roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
             source= examples['conversations'][i]
+            if not source:
+                continue
+            #print(f"roles: {roles}")
+            #print(conv.roles)
+            skip = False
+            for turn in source:
+                if turn['from'] == "system":
+                    skip = True
+                    break
+                if turn['from'] == 'user':
+                    turn['from'] = 'human'
+                if turn['from'] == 'bing' or turn['from'] == 'chatgpt':
+                    turn['from'] = 'gpt'
+
+            if skip:
+                continue
             if roles[source[0]["from"]] != conv.roles[0]:
                 # Skip the first one if it is not from human
                 source = source[1:]
             conv.messages = []
             for j, sentence in enumerate(source):
                 role = roles[sentence["from"]]
-                assert role == conv.roles[j % 2], f"{i}"
+                if role != conv.roles[j % 2]:
+                    skip = True
                 conv.append_message(role, sentence["value"])
+            if skip:
+                continue
             conversation=conv.get_prompt()
 
             input_ids = tokenizer(
@@ -127,10 +149,10 @@ def build_dataset_rank(
     ds1.set_format(type="torch")
     return ds1
 
-bigtokenizer = AutoTokenizer.from_pretrained(bigname, use_fast=False)
+bigtokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=False)
 ds = build_dataset_rank(bigtokenizer)
 print(ds)
-bigmodel = AutoModelForCausalLM.from_pretrained(bigname,  device_map="auto", torch_dtype=torch.float16)
+bigmodel = AutoModelForCausalLM.from_pretrained(model_path,  device_map="auto", torch_dtype=torch.float16)
 bigmodel.eval()
 
 
@@ -168,5 +190,3 @@ def writedata(name,data_point):
 for data in tqdm(ds):
     outdata = ge(data)
     writedata(outdir,outdata)
-
-

@@ -3,7 +3,7 @@ parser = argparse.ArgumentParser(description='sp')
 parser.add_argument('--basepath', type=str, default='')
 parser.add_argument('--configpath', type=str, default="config.json")
 parser.add_argument('--lr', type=float, default=3e-5)
-parser.add_argument('--bs', type=int, default=4)
+parser.add_argument('--bs', type=int, default=3)
 parser.add_argument("--exit_layer", type=str, default='2')
 parser.add_argument('--gradient-accumulation-steps', type=int, default=8)
 parser.add_argument('--tmpdir', type=str, default='0')
@@ -333,4 +333,4 @@ for epoch in range(args.start, args.start + 1):
         print('Train Accuracy: {:.2f}%'.format(100 * correct / total))
 
     accelerator.save_state(output_dir=f"{args.cpdir}/state_{epoch}")
-    
+    torch.cuda.empty_cache()
