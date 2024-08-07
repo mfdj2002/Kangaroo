@@ -34,6 +34,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--model-id", type=str, required=True)
     parser.add_argument(
+        "--tokenizer-path",
+        type=str
+    )
+    parser.add_argument(
         "--bench-name",
         type=str,
         default="mt_bench",
@@ -97,7 +101,7 @@ if __name__ == "__main__":
         device_map="auto"
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=False)
 
     if args.temperature > 0:
         do_sample = True

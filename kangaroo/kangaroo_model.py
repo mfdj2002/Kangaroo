@@ -8,6 +8,11 @@ from transformers.models.llama import LlamaConfig
 
 from kangaroo.adapter import AdapterModel
 from kangaroo.earlyexit import EarlyExitLlamaForCausalLM
+from safetensors import safe_open
+
+def load_safetensor_weights(file_path):
+    with safe_open(file_path, framework="pt", device="cpu") as f:
+        return {key: f.get_tensor(key) for key in f.keys()}
 
 class KangarooModel(nn.Module):
 
@@ -25,7 +30,10 @@ class KangarooModel(nn.Module):
         config = LlamaConfig.from_pretrained(os.path.join(adapter_model_path, "config.json"))
         self.adapter_model = AdapterModel(config)
 
-        self.adapter_model.load_state_dict(torch.load(os.path.join(adapter_model_path, "pytorch_model.bin"), map_location="cpu"), strict=False)
+        adapter_weights = load_safetensor_weights(os.path.join(adapter_model_path, args.ckpt_dir, "model.safetensors"))
+        for name, param in self.adapter_model.named_parameters():
+            if name in adapter_weights:
+                param.data = adapter_weights[name]
         self.adapter_model = self.adapter_model.eval().to(self.base_model.device)
 
         if args.dtype == "float16":
@@ -45,6 +53,7 @@ class KangarooModel(nn.Module):
 
     def forward(self):
         raise NotImplementedError
+
 
 
 

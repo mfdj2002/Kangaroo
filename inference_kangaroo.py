@@ -137,11 +137,20 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
+        "--ckpt-dir",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
         "--adapter-path",
         type=str,
         required=True,
     )
     parser.add_argument("--model-id", type=str, required=True)
+    parser.add_argument(
+        "--tokenizer-path",
+        type=str,
+    )
     parser.add_argument(
         "--bench-name",
         type=str,
@@ -212,7 +221,7 @@ if __name__ == "__main__":
     question_file = f"data/question.jsonl"
 
     model = KangarooModel(args.model_path, args.adapter_path, args, EARLY_STOP_LAYER = args.exitlayer)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=False)
     do_sample = False
 
     assert not args.answer_file
