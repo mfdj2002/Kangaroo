@@ -12,6 +12,8 @@ parser.add_argument('--cpdir', type=str, default='0')
 parser.add_argument('--start', type=int, default=0)
 args = parser.parse_args()
 
+ep1 = int(args.exit_layer)+1
+
 print("training lora...")
 
 train_config = {
@@ -20,7 +22,7 @@ train_config = {
     "gradient_accumulation_steps": args.gradient_accumulation_steps,
     "datapath": f"{args.tmpdir}",
     "is_warmup": True,
-    "num_epochs": 20,
+    "num_epochs": 10,
     "num_warmup_steps": 2000,
     "total_steps": 800000,
     "num_workers": 8,
@@ -95,7 +97,7 @@ except:
         index_json = json.loads(f.read())
         head_path = index_json["weight_map"]["lm_head.weight"]
         for key, filename in index_json.items():
-            if f"model.layers.{args.exit_layer+1}." in key:
+            if f"model.layers.{ep1}." in key:
                 file_map[key] = filename
     
     # Load the weights
@@ -114,7 +116,7 @@ head.weight.data = tensor
 head.eval()
 
 for name, param in exit_plus_one_layer.named_parameters():
-    weight_name = f"model.layers.{args.exit_layer+1}.{name}"
+    weight_name = f"model.layers.{ep1}.{name}"
     if weight_name in ep1_weights:
         param.data = ep1_weights[weight_name]
 exit_plus_one_layer.eval()
@@ -131,7 +133,15 @@ from peft import LoraConfig, get_peft_model
 config = LoraConfig(
     r=8,
     lora_alpha=16,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    target_modules=[
+        "self_attn.q_proj",
+        "self_attn.k_proj",
+        "self_attn.v_proj",
+        "self_attn.o_proj",
+        "mlp.gate_proj",
+        "mlp.up_proj",
+        "mlp.down_proj"
+        ],
     lora_dropout=0.05,
     bias="none", 
     #task_type="CAUSAL_LM"
