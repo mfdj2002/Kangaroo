@@ -2,7 +2,7 @@ import argparse
 parser = argparse.ArgumentParser(description='sp')
 parser.add_argument('--basepath', type=str, default='')
 parser.add_argument('--configpath', type=str, default="config.json")
-parser.add_argument('--lr', type=float, default=3e-5)
+parser.add_argument('--lr', type=float, default=2e-4)
 parser.add_argument('--bs', type=int, default=4)
 parser.add_argument("--exit_layer", type=str, default='2')
 parser.add_argument('--gradient-accumulation-steps', type=int, default=8)
@@ -32,8 +32,8 @@ train_config = {
     # During training, truncating the training sequences means that the larger the setting, the more training data is used, and the better the effect, but it also consumes more VRAM.
     "config_path": args.configpath,
     "b1": 0.9,
-    "b2": 0.95,
-    "grad_clip": 0.5,
+    "b2": 0.99,
+    "grad_clip": 1.0,
     "save_freq": 2
 }
 
@@ -138,9 +138,9 @@ config = LoraConfig(
         "self_attn.k_proj",
         "self_attn.v_proj",
         "self_attn.o_proj",
-        "mlp.gate_proj",
-        "mlp.up_proj",
-        "mlp.down_proj"
+        #"mlp.gate_proj",
+        #"mlp.up_proj",
+        #"mlp.down_proj"
         ],
     lora_dropout=0.05,
     bias="none", 
