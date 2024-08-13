@@ -1,7 +1,8 @@
 import argparse
 
 parser = argparse.ArgumentParser(description='sp')
-parser.add_argument('--outdir', type=str, default='/home/ma-user/work/Data/')
+parser.add_argument('--outdir', type=str, default='/data/shared_workspace/fujingkai/datasets')
+parser.add_argument('--model', type=str, required=True)
 args = parser.parse_args()
 
 import os
@@ -10,10 +11,10 @@ from concurrent.futures import ThreadPoolExecutor
 s = 0
 e = 68000 - 1
 
-gpus = [[0],[1],[2],[3],[4],[5],[6],[7]]
+gpus = [[2],[3],[7],[8]]
 
 num_p = len(gpus)
-outdir = '{}/sharegpt_{}_{}_mufp16'.format(args.outdir, s, e)
+outdir = '{}/{}_sharegpt_{}_{}_mufp16'.format(args.outdir, args.model, s, e)
 
 def split_range(start, end, n, over=False):
     length = end - start + 1  # Include the end
@@ -47,7 +48,7 @@ for i in range(num_p):
     end = data_a[i][1]
     gpu_index = gpus[i]
     gpu_index_str = ' '.join(map(str, gpu_index))
-    command = "python ge_data_all_vicuna.py --start={} --end={} --index={} --gpu_index {} --outdir {}".format(start, end, index, gpu_index_str, outdir)
+    command = "python ge_data_all_{}.py --start={} --end={} --index={} --gpu_index {} --outdir {}".format(args.model, start, end, index, gpu_index_str, outdir)
     commands.append(command)
 
 with ThreadPoolExecutor(max_workers=len(commands)) as executor:
