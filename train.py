@@ -18,7 +18,7 @@ train_config = {
     "gradient_accumulation_steps": args.gradient_accumulation_steps,
     "datapath": f"{args.tmpdir}",
     "is_warmup": True,
-    "num_epochs": 20,
+    "num_epochs": 10,
     "num_warmup_steps": 2000,
     "total_steps": 800000,
     "num_workers": 8,
